@@ -1,0 +1,503 @@
+import { supabase } from './supabase';
+import type { Database } from './supabase';
+
+type Profile = Database['public']['Tables']['profiles']['Row'];
+type Task = Database['public']['Tables']['tasks']['Row'];
+type Application = Database['public']['Tables']['applications']['Row'];
+type Submission = Database['public']['Tables']['submissions']['Row'];
+type Badge = Database['public']['Tables']['badges']['Row'];
+type InternBadge = Database['public']['Tables']['intern_badges']['Row'];
+
+// Profile functions
+export async function getProfile(userId: string): Promise<Profile | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  
+  if (error) {
+    console.error('Error fetching profile:', error);
+    return null;
+  }
+  
+  return data;
+}
+
+export async function updateProfile(userId: string, updates: Partial<Profile>): Promise<boolean> {
+  const { error } = await supabase
+    .from('profiles')
+    .update(updates)
+    .eq('id', userId);
+  
+  if (error) {
+    console.error('Error updating profile:', error);
+    return false;
+  }
+  
+  return true;
+}
+
+// Task functions
+export async function getTasks(filters?: {
+  businessId?: string;
+  status?: string;
+  category?: string;
+  difficulty?: string;
+  search?: string;
+}): Promise<(Task & { business_name?: string })[]> {
+  let query = supabase
+    .from('tasks')
+    .select(`
+      *,
+      profiles!tasks_business_id_fkey(name, business_name)
+    `);
+  
+  if (filters?.businessId) {
+    query = query.eq('business_id', filters.businessId);
+  }
+  
+  if (filters?.status) {
+    query = query.eq('status', filters.status);
+  }
+  
+  if (filters?.category && filters.category !== 'all') {
+    query = query.eq('category', filters.category);
+  }
+  
+  if (filters?.difficulty && filters.difficulty !== 'all') {
+    query = query.eq('difficulty', filters.difficulty);
+  }
+  
+  if (filters?.search) {
+    query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
+  }
+  
+  const { data, error } = await query.order('posted_date', { ascending: false });
+  
+  if (error) {
+    console.error('Error fetching tasks:', error);
+    return [];
+  }
+  
+  return (data || []).map((item: any) => ({
+    ...item,
+    business_name: item.profiles?.business_name || item.profiles?.name,
+  }));
+}
+
+export async function getTask(taskId: string): Promise<Task | null> {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('id', taskId)
+    .single();
+  
+  if (error) {
+    console.error('Error fetching task:', error);
+    return null;
+  }
+  
+  return data;
+}
+
+export async function createTask(task: Database['public']['Tables']['tasks']['Insert']): Promise<Task | null> {
+  const { data, error } = await supabase
+    .from('tasks')
+    .insert(task)
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Error creating task:', error);
+    return null;
+  }
+  
+  return data;
+}
+
+export async function updateTask(taskId: string, updates: Partial<Task>): Promise<boolean> {
+  const { error } = await supabase
+    .from('tasks')
+    .update(updates)
+    .eq('id', taskId);
+  
+  if (error) {
+    console.error('Error updating task:', error);
+    return false;
+  }
+  
+  return true;
+}
+
+export async function deleteTask(taskId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('tasks')
+    .delete()
+    .eq('id', taskId);
+  
+  if (error) {
+    console.error('Error deleting task:', error);
+    return false;
+  }
+  
+  return true;
+}
+
+// Application functions
+export async function createApplication(application: Database['public']['Tables']['applications']['Insert']): Promise<Application | null> {
+  const { data, error } = await supabase
+    .from('applications')
+    .insert(application)
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Error creating application:', error);
+    return null;
+  }
+  
+  // Update task status to in-progress
+  await supabase
+    .from('tasks')
+    .update({ status: 'in-progress' })
+    .eq('id', application.task_id);
+  
+  return data;
+}
+
+export async function getApplications(filters?: {
+  taskId?: string;
+  internId?: string;
+  status?: string;
+}): Promise<Application[]> {
+  let query = supabase.from('applications').select('*');
+  
+  if (filters?.taskId) {
+    query = query.eq('task_id', filters.taskId);
+  }
+  
+  if (filters?.internId) {
+    query = query.eq('intern_id', filters.internId);
+  }
+  
+  if (filters?.status) {
+    query = query.eq('status', filters.status);
+  }
+  
+  const { data, error } = await query.order('created_at', { ascending: false });
+  
+  if (error) {
+    console.error('Error fetching applications:', error);
+    return [];
+  }
+  
+  return data || [];
+}
+
+export async function updateApplication(applicationId: string, updates: Partial<Application>): Promise<boolean> {
+  const { error } = await supabase
+    .from('applications')
+    .update(updates)
+    .eq('id', applicationId);
+  
+  if (error) {
+    console.error('Error updating application:', error);
+    return false;
+  }
+  
+  return true;
+}
+
+// Submission functions
+export async function createSubmission(submission: Database['public']['Tables']['submissions']['Insert']): Promise<Submission | null> {
+  const { data, error } = await supabase
+    .from('submissions')
+    .insert({
+      ...submission,
+      submitted_date: new Date().toISOString().split('T')[0],
+    })
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Error creating submission:', error);
+    return null;
+  }
+  
+  // Update task status to under-review
+  await supabase
+    .from('tasks')
+    .update({ status: 'under-review' })
+    .eq('id', submission.task_id);
+  
+  return data;
+}
+
+export async function getSubmissions(filters?: {
+  taskId?: string;
+  internId?: string;
+  businessId?: string;
+  status?: string;
+}): Promise<(Submission & { intern_name?: string; task_title?: string })[]> {
+  let query = supabase
+    .from('submissions')
+    .select(`
+      *,
+      profiles!submissions_intern_id_fkey(name),
+      tasks!submissions_task_id_fkey(title)
+    `);
+  
+  if (filters?.taskId) {
+    query = query.eq('task_id', filters.taskId);
+  }
+  
+  if (filters?.internId) {
+    query = query.eq('intern_id', filters.internId);
+  }
+  
+  if (filters?.status) {
+    query = query.eq('status', filters.status);
+  }
+  
+  if (filters?.businessId) {
+    // Get submissions for tasks owned by this business
+    const { data: tasks } = await supabase
+      .from('tasks')
+      .select('id')
+      .eq('business_id', filters.businessId);
+    
+    if (tasks && tasks.length > 0) {
+      query = query.in('task_id', tasks.map(t => t.id));
+    } else {
+      return [];
+    }
+  }
+  
+  const { data, error } = await query.order('submitted_date', { ascending: false });
+  
+  if (error) {
+    console.error('Error fetching submissions:', error);
+    return [];
+  }
+  
+  return (data || []).map((item: any) => ({
+    ...item,
+    intern_name: item.profiles?.name,
+    task_title: item.tasks?.title,
+  }));
+}
+
+export async function updateSubmission(submissionId: string, updates: Partial<Submission>): Promise<boolean> {
+  const { error } = await supabase
+    .from('submissions')
+    .update(updates)
+    .eq('id', submissionId);
+  
+  if (error) {
+    console.error('Error updating submission:', error);
+    return false;
+  }
+  
+  // If approved, award points and update intern profile
+  if (updates.status === 'approved' && updates.rating) {
+    const { data: submission } = await supabase
+      .from('submissions')
+      .select('intern_id, task_id, tasks(points)')
+      .eq('id', submissionId)
+      .single();
+    
+    if (submission) {
+      const taskPoints = (submission.tasks as any)?.points || 0;
+      
+      // Get current intern profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('points, level')
+        .eq('id', submission.intern_id)
+        .single();
+      
+      if (profile) {
+        const newPoints = (profile.points || 0) + taskPoints;
+        const newLevel = Math.floor(newPoints / 100) + 1;
+        
+        await supabase
+          .from('profiles')
+          .update({ points: newPoints, level: newLevel })
+          .eq('id', submission.intern_id);
+        
+        // Check and unlock badges
+        await checkAndUnlockBadges(submission.intern_id, newPoints, newLevel);
+      }
+      
+      // Update task status to completed
+      await supabase
+        .from('tasks')
+        .update({ status: 'completed' })
+        .eq('id', submission.task_id);
+    }
+  }
+  
+  return true;
+}
+
+// Badge functions
+export async function getBadges(): Promise<Badge[]> {
+  const { data, error } = await supabase
+    .from('badges')
+    .select('*')
+    .order('requirement_value', { ascending: true });
+  
+  if (error) {
+    console.error('Error fetching badges:', error);
+    return [];
+  }
+  
+  return data || [];
+}
+
+export async function getInternBadges(internId: string): Promise<InternBadge[]> {
+  const { data, error } = await supabase
+    .from('intern_badges')
+    .select('*')
+    .eq('intern_id', internId);
+  
+  if (error) {
+    console.error('Error fetching intern badges:', error);
+    return [];
+  }
+  
+  return data || [];
+}
+
+async function checkAndUnlockBadges(internId: string, points: number, level: number): Promise<void> {
+  // Get all badges and intern's unlocked badges
+  const [badges, unlockedBadges] = await Promise.all([
+    getBadges(),
+    getInternBadges(internId),
+  ]);
+  
+  const unlockedBadgeIds = new Set(unlockedBadges.map(ub => ub.badge_id));
+  
+  // Get intern's stats
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('points, level')
+    .eq('id', internId)
+    .single();
+  
+  if (!profile) return;
+  
+  // Get completed tasks count
+  const { data: completedSubmissions } = await supabase
+    .from('submissions')
+    .select('task_id')
+    .eq('intern_id', internId)
+    .eq('status', 'approved');
+  
+  const tasksCompleted = completedSubmissions?.length || 0;
+  
+  // Check each badge
+  for (const badge of badges) {
+    if (unlockedBadgeIds.has(badge.id)) continue;
+    
+    let shouldUnlock = false;
+    
+    switch (badge.requirement_type) {
+      case 'tasks_completed':
+        shouldUnlock = tasksCompleted >= badge.requirement_value;
+        break;
+      case 'points':
+        shouldUnlock = points >= badge.requirement_value;
+        break;
+      case 'level':
+        shouldUnlock = level >= badge.requirement_value;
+        break;
+    }
+    
+    if (shouldUnlock) {
+      await supabase
+        .from('intern_badges')
+        .insert({ intern_id: internId, badge_id: badge.id });
+    }
+  }
+}
+
+// Leaderboard function
+export async function getLeaderboard(limit: number = 50): Promise<Array<{
+  rank: number;
+  intern_id: string;
+  name: string;
+  points: number;
+  level: number;
+  tasks_completed: number;
+  badges: number;
+}>> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select(`
+      id,
+      name,
+      points,
+      level
+    `)
+    .eq('role', 'intern')
+    .order('points', { ascending: false })
+    .limit(limit);
+  
+  if (error) {
+    console.error('Error fetching leaderboard:', error);
+    return [];
+  }
+  
+  // Get additional stats for each intern
+  const leaderboard = await Promise.all(
+    (data || []).map(async (profile, index) => {
+      const [completedSubmissions, badges] = await Promise.all([
+        supabase
+          .from('submissions')
+          .select('id', { count: 'exact', head: true })
+          .eq('intern_id', profile.id)
+          .eq('status', 'approved'),
+        supabase
+          .from('intern_badges')
+          .select('id', { count: 'exact', head: true })
+          .eq('intern_id', profile.id),
+      ]);
+      
+      return {
+        rank: index + 1,
+        intern_id: profile.id,
+        name: profile.name,
+        points: profile.points || 0,
+        level: profile.level || 1,
+        tasks_completed: completedSubmissions.count || 0,
+        badges: badges.count || 0,
+      };
+    })
+  );
+  
+  return leaderboard;
+}
+
+// File upload function
+export async function uploadFile(file: File, userId: string): Promise<string | null> {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${userId}/${Date.now()}.${fileExt}`;
+  
+  const { data, error } = await supabase.storage
+    .from('submissions')
+    .upload(fileName, file);
+  
+  if (error) {
+    console.error('Error uploading file:', error);
+    return null;
+  }
+  
+  const { data: { publicUrl } } = supabase.storage
+    .from('submissions')
+    .getPublicUrl(data.path);
+  
+  return publicUrl;
+}
+
