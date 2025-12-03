@@ -1,9 +1,10 @@
+import { useEffect, useState } from 'react';
 import { User } from '../../App';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Briefcase, Users, Star, TrendingUp, ArrowRight, CheckCircle } from 'lucide-react';
-import { mockTasks, mockSubmissions } from '../../lib/mockData';
+import { getTasks, getSubmissions, getApplications, type TaskWithBusiness, type SubmissionWithMeta } from '../../lib/db';
 
 interface BusinessHomeProps {
   user: User;
@@ -11,13 +12,38 @@ interface BusinessHomeProps {
 }
 
 export function BusinessHome({ user, onNavigate }: BusinessHomeProps) {
-  const myTasks = mockTasks.slice(0, 5); // Mock: business's tasks
-  const activeTasks = myTasks.filter(t => t.status === 'open').length;
-  const totalApplications = 24; // Mock data
-  const pendingSubmissions = mockSubmissions.filter(s => s.status === 'pending').length;
-  const completedTasks = 8; // Mock data
+  const [myTasks, setMyTasks] = useState<TaskWithBusiness[]>([]);
+  const [recentSubmissions, setRecentSubmissions] = useState<SubmissionWithMeta[]>([]);
+  const [activeTasks, setActiveTasks] = useState(0);
+  const [totalApplications, setTotalApplications] = useState(0);
+  const [pendingSubmissions, setPendingSubmissions] = useState(0);
+  const [completedTasks, setCompletedTasks] = useState(0);
 
-  const recentSubmissions = mockSubmissions.slice(0, 3);
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      if (!user.id) return;
+
+      const [tasks, submissions, applications] = await Promise.all([
+        getTasks({ businessId: user.id }),
+        getSubmissions({ businessId: user.id }),
+        getApplications({ businessId: user.id }),
+      ]);
+
+      setMyTasks(tasks);
+      setActiveTasks(tasks.filter(t => t.status === 'open').length);
+      setCompletedTasks(tasks.filter(t => t.status === 'completed').length);
+
+      setPendingSubmissions(submissions.filter(s => s.status === 'pending').length);
+      const sortedSubs = [...submissions].sort(
+        (a, b) => new Date(b.submitted_date).getTime() - new Date(a.submitted_date).getTime()
+      );
+      setRecentSubmissions(sortedSubs.slice(0, 3));
+
+      setTotalApplications(applications.length);
+    };
+
+    loadDashboardData();
+  }, [user.id]);
 
   return (
     <div className="space-y-8">
@@ -96,59 +122,65 @@ export function BusinessHome({ user, onNavigate }: BusinessHomeProps) {
 
         {recentSubmissions.length > 0 ? (
           <div className="space-y-4">
-            {recentSubmissions.map((submission) => {
-              const task = mockTasks.find(t => t.id === submission.taskId);
-              return (
-                <Card key={submission.id} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="pt-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h4 className="text-lg">{task?.title}</h4>
-                          <Badge variant={
-                            submission.status === 'approved' ? 'default' :
-                            submission.status === 'rejected' ? 'destructive' : 'secondary'
-                          }>
-                            {submission.status}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-2">
-                          Submitted by <span>{submission.internName}</span>
-                        </p>
-                        <p className="text-sm text-gray-600 line-clamp-2">
-                          {submission.description}
-                        </p>
-                        {submission.rating && (
-                          <div className="flex items-center gap-2 mt-2">
-                            <div className="flex">
-                              {Array.from({ length: 5 }).map((_, i) => (
-                                <Star
-                                  key={i}
-                                  className={`size-4 ${i < submission.rating! ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
-                                />
-                              ))}
-                            </div>
-                            <span className="text-sm text-gray-600">
-                              Rating: {submission.rating}/5
-                            </span>
+            {recentSubmissions.map((submission) => (
+              <Card key={submission.id} className="hover:shadow-lg transition-shadow">
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h4 className="text-lg">{submission.task_title}</h4>
+                        <Badge
+                          variant={
+                            submission.status === 'approved'
+                              ? 'default'
+                              : submission.status === 'rejected'
+                              ? 'destructive'
+                              : 'secondary'
+                          }
+                        >
+                          {submission.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-2">
+                        Submitted by <span>{submission.intern_name}</span>
+                      </p>
+                      <p className="text-sm text-gray-600 line-clamp-2">
+                        {submission.description}
+                      </p>
+                      {submission.rating && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <div className="flex">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`size-4 ${
+                                  i < submission.rating!
+                                    ? 'fill-amber-400 text-amber-400'
+                                    : 'text-gray-300'
+                                }`}
+                              />
+                            ))}
                           </div>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-500 mb-2">
-                          {new Date(submission.submittedDate).toLocaleDateString()}
-                        </p>
-                        {submission.status === 'pending' && (
-                          <Button size="sm" onClick={() => onNavigate('submissions')}>
-                            Review
-                          </Button>
-                        )}
-                      </div>
+                          <span className="text-sm text-gray-600">
+                            Rating: {submission.rating}/5
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                    <div className="text-right">
+                      <p className="text-sm text-gray-500 mb-2">
+                        {new Date(submission.submitted_date).toLocaleDateString()}
+                      </p>
+                      {submission.status === 'pending' && (
+                        <Button size="sm" onClick={() => onNavigate('submissions')}>
+                          Review
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         ) : (
           <Card className="p-12 text-center">

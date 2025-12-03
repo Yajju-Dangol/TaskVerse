@@ -65,12 +65,12 @@ export function TaskBrowser({ user }: TaskBrowserProps) {
       task_id: selectedTask.id,
       intern_id: user.id,
       application_text: applicationText,
-      status: 'pending',
+      status: 'accepted',
     });
 
     if (application) {
-      toast.success('Application submitted!', {
-        description: `You've applied for "${selectedTask.title}". The business will review your application soon.`
+      toast.success('Task added to My Tasks!', {
+        description: `You've joined "${selectedTask.title}". You can now work on it from the My Tasks page.`
       });
       setSelectedTask(null);
       setApplicationText('');

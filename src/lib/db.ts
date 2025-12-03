@@ -8,6 +8,10 @@ type Submission = Database['public']['Tables']['submissions']['Row'];
 type Badge = Database['public']['Tables']['badges']['Row'];
 type InternBadge = Database['public']['Tables']['intern_badges']['Row'];
 
+// Shared types for computed views
+export type TaskWithBusiness = Task & { business_name?: string };
+export type SubmissionWithMeta = Submission & { intern_name?: string; task_title?: string };
+
 // Profile functions
 export async function getProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
@@ -45,7 +49,7 @@ export async function getTasks(filters?: {
   category?: string;
   difficulty?: string;
   search?: string;
-}): Promise<(Task & { business_name?: string })[]> {
+}): Promise<TaskWithBusiness[]> {
   let query = supabase
     .from('tasks')
     .select(`
@@ -146,9 +150,29 @@ export async function deleteTask(taskId: string): Promise<boolean> {
 
 // Application functions
 export async function createApplication(application: Database['public']['Tables']['applications']['Insert']): Promise<Application | null> {
+  // Ensure idempotency with UNIQUE(task_id, intern_id)
+  const { data: existing, error: existingError } = await supabase
+    .from('applications')
+    .select('*')
+    .eq('task_id', application.task_id)
+    .eq('intern_id', application.intern_id)
+    .maybeSingle();
+
+  if (existingError) {
+    console.error('Error checking existing application:', existingError);
+  }
+
+  if (existing) {
+    // Already applied for this task; treat as success
+    return existing as Application;
+  }
+
   const { data, error } = await supabase
     .from('applications')
-    .insert(application)
+    .insert({
+      ...application,
+      status: 'accepted',
+    })
     .select()
     .single();
   
@@ -170,6 +194,7 @@ export async function getApplications(filters?: {
   taskId?: string;
   internId?: string;
   status?: string;
+  businessId?: string;
 }): Promise<Application[]> {
   let query = supabase.from('applications').select('*');
   
@@ -183,6 +208,20 @@ export async function getApplications(filters?: {
   
   if (filters?.status) {
     query = query.eq('status', filters.status);
+  }
+
+  if (filters?.businessId) {
+    // Limit applications to tasks owned by this business
+    const { data: tasks } = await supabase
+      .from('tasks')
+      .select('id')
+      .eq('business_id', filters.businessId);
+
+    if (tasks && tasks.length > 0) {
+      query = query.in('task_id', tasks.map(t => t.id));
+    } else {
+      return [];
+    }
   }
   
   const { data, error } = await query.order('created_at', { ascending: false });
@@ -239,7 +278,7 @@ export async function getSubmissions(filters?: {
   internId?: string;
   businessId?: string;
   status?: string;
-}): Promise<(Submission & { intern_name?: string; task_title?: string })[]> {
+}): Promise<SubmissionWithMeta[]> {
   let query = supabase
     .from('submissions')
     .select(`
@@ -339,6 +378,63 @@ export async function updateSubmission(submissionId: string, updates: Partial<Su
   }
   
   return true;
+}
+
+// Intern portfolio
+export interface InternPortfolioItem {
+  id: string;
+  task_title: string;
+  business_name: string;
+  completed_date: string;
+  description: string;
+  skills: string[];
+  rating: number;
+  points: number;
+}
+
+export async function getInternPortfolio(internId: string): Promise<InternPortfolioItem[]> {
+  const { data, error } = await supabase
+    .from('submissions')
+    .select(`
+      id,
+      description,
+      rating,
+      submitted_date,
+      status,
+      tasks:tasks!submissions_task_id_fkey (
+        title,
+        points,
+        skills,
+        profiles:profiles!tasks_business_id_fkey (
+          business_name,
+          name
+        )
+      )
+    `)
+    .eq('intern_id', internId)
+    .eq('status', 'approved')
+    .order('submitted_date', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching intern portfolio:', error);
+    return [];
+  }
+
+  return (data || []).map((item: any) => {
+    const task = item.tasks || {};
+    const businessProfile = task.profiles || {};
+
+    return {
+      id: item.id as string,
+      task_title: task.title as string,
+      business_name: (businessProfile.business_name || businessProfile.name || 'Business') as string,
+      completed_date: item.submitted_date as string,
+      description: item.description as string,
+      skills: (task.skills || []) as string[],
+      rating: (item.rating || 0) as number,
+      points: (task.points || 0) as number,
+    };
+  });
 }
 
 // Badge functions

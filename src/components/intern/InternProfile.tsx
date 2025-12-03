@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { User } from '../../App';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -6,7 +7,10 @@ import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Progress } from '../ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Trophy, Award, Star, Briefcase, Mail, Calendar, Edit, Download } from 'lucide-react';
-import { mockBadges, mockPortfolio } from '../../lib/mockData';
+import { getBadges, getInternBadges, getInternPortfolio, type InternPortfolioItem } from '../../lib/db';
+import type { Database } from '../../lib/supabase';
+
+type BadgeRow = Database['public']['Tables']['badges']['Row'] & { unlocked?: boolean };
 
 interface InternProfileProps {
   user: User;
@@ -17,15 +21,44 @@ export function InternProfile({ user }: InternProfileProps) {
   const currentLevel = user.level || 1;
   const pointsToNextLevel = currentLevel * 100;
   const progressToNextLevel = ((currentPoints % 100) / pointsToNextLevel) * 100;
-  
-  const unlockedBadges = mockBadges.filter(b => b.unlocked);
-  const lockedBadges = mockBadges.filter(b => !b.unlocked);
+
+  const [badges, setBadges] = useState<BadgeRow[]>([]);
+  const [portfolio, setPortfolio] = useState<InternPortfolioItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadProfileData = async () => {
+      if (!user.id) return;
+
+      const [allBadges, internBadges, portfolioItems] = await Promise.all([
+        getBadges(),
+        getInternBadges(user.id),
+        getInternPortfolio(user.id),
+      ]);
+
+      const unlockedIds = new Set(internBadges.map(b => b.badge_id));
+      const badgesWithState: BadgeRow[] = allBadges.map(badge => ({
+        ...badge,
+        unlocked: unlockedIds.has(badge.id),
+      }));
+
+      setBadges(badgesWithState);
+      setPortfolio(portfolioItems);
+      setLoading(false);
+    };
+
+    loadProfileData();
+  }, [user.id]);
+
+  const unlockedBadges = badges.filter(b => b.unlocked);
+  const lockedBadges = badges.filter(b => !b.unlocked);
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
-  const averageRating = mockPortfolio.reduce((acc, item) => acc + item.rating, 0) / mockPortfolio.length || 0;
+  const averageRating =
+    portfolio.reduce((acc, item) => acc + (item.rating || 0), 0) / (portfolio.length || 1);
 
   return (
     <div className="space-y-6">
@@ -76,7 +109,7 @@ export function InternProfile({ user }: InternProfileProps) {
                 </div>
                 <div className="bg-green-50 rounded-lg p-3 text-center">
                   <Briefcase className="size-5 mx-auto mb-1 text-green-600" />
-                  <p className="text-2xl">{mockPortfolio.length}</p>
+                  <p className="text-2xl">{portfolio.length}</p>
                   <p className="text-xs text-gray-600">Completed</p>
                 </div>
                 <div className="bg-amber-50 rounded-lg p-3 text-center">
@@ -118,16 +151,16 @@ export function InternProfile({ user }: InternProfileProps) {
             </Button>
           </div>
 
-          {mockPortfolio.map((item) => (
+          {portfolio.map((item) => (
             <Card key={item.id}>
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <CardTitle className="text-lg">{item.taskTitle}</CardTitle>
+                    <CardTitle className="text-lg">{item.task_title}</CardTitle>
                     <CardDescription className="flex items-center gap-4 mt-1">
-                      <span>{item.businessName}</span>
+                      <span>{item.business_name}</span>
                       <span>•</span>
-                      <span>{new Date(item.completedDate).toLocaleDateString()}</span>
+                      <span>{new Date(item.completed_date).toLocaleDateString()}</span>
                     </CardDescription>
                   </div>
                   <div className="flex items-center gap-2">
@@ -159,7 +192,7 @@ export function InternProfile({ user }: InternProfileProps) {
             </Card>
           ))}
 
-          {mockPortfolio.length === 0 && (
+          {portfolio.length === 0 && (
             <Card className="p-12 text-center">
               <Briefcase className="size-12 mx-auto mb-4 text-gray-400" />
               <p className="text-gray-500 mb-4">No completed tasks yet</p>
@@ -219,8 +252,8 @@ export function InternProfile({ user }: InternProfileProps) {
             <CardContent>
               <div className="space-y-4">
                 {/* Extract unique skills from portfolio */}
-                {Array.from(new Set(mockPortfolio.flatMap(item => item.skills))).map((skill) => {
-                  const tasksWithSkill = mockPortfolio.filter(item => item.skills.includes(skill));
+                {Array.from(new Set(portfolio.flatMap(item => item.skills))).map((skill) => {
+                  const tasksWithSkill = portfolio.filter(item => item.skills.includes(skill));
                   const proficiency = Math.min((tasksWithSkill.length / 5) * 100, 100);
                   
                   return (
@@ -236,7 +269,7 @@ export function InternProfile({ user }: InternProfileProps) {
                   );
                 })}
 
-                {mockPortfolio.length === 0 && (
+                {portfolio.length === 0 && (
                   <p className="text-center text-gray-500 py-8">
                     Complete tasks to build your skill profile
                   </p>

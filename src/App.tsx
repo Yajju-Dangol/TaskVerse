@@ -22,46 +22,74 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        loadUserProfile(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_OUT') {
-        setCurrentUser(null);
-        setLoading(false);
-      } else if (session?.user) {
-        await loadUserProfile(session.user.id);
-      } else {
-        setCurrentUser(null);
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
   const loadUserProfile = async (userId: string) => {
-    const profile = await getProfile(userId);
-    if (profile) {
-      setCurrentUser({
-        id: profile.id,
-        email: profile.email,
-        role: profile.role as UserRole,
-        name: profile.name,
-        points: profile.points,
-        level: profile.level,
-      });
+    try {
+      const profile = await getProfile(userId);
+      if (profile) {
+        setCurrentUser({
+          id: profile.id,
+          email: profile.email,
+          role: profile.role as UserRole,
+          name: profile.name,
+          points: profile.points,
+          level: profile.level,
+        });
+      } else {
+        // If profile is missing, treat as logged-out for now
+        setCurrentUser(null);
+      }
+    } catch (error) {
+      console.error('Error in loadUserProfile:', error);
+      setCurrentUser(null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
+
+  useEffect(() => {
+    let isMounted = true;
+    let subscription: { unsubscribe: () => void } | null = null;
+
+    const init = async () => {
+      try {
+        // Always clear any existing Supabase session on first load so users must log in explicitly.
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.error('Error clearing existing session on init:', err);
+      } finally {
+        if (isMounted) {
+          setCurrentUser(null);
+          setLoading(false);
+        }
+      }
+
+      // After clearing any old session, listen for future auth changes (explicit login/logout)
+      const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (!isMounted) return;
+
+        if (event === 'SIGNED_OUT' || !session?.user) {
+          setCurrentUser(null);
+          setLoading(false);
+          return;
+        }
+
+        if (event === 'SIGNED_IN' && session.user) {
+          await loadUserProfile(session.user.id);
+        }
+      });
+
+      subscription = data.subscription;
+    };
+
+    void init();
+
+    return () => {
+      isMounted = false;
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
+  }, []);
 
   const handleLogout = async () => {
     try {
