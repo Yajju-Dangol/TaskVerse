@@ -51,7 +51,8 @@
     },
     build: {
       target: 'esnext',
-      outDir: 'build',
+      // Netlify expects the publish directory to be "dist" by default.
+      outDir: 'dist',
     },
     server: {
       port: 3000,
