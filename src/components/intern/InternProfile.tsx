@@ -14,9 +14,10 @@ type BadgeRow = Database['public']['Tables']['badges']['Row'] & { unlocked?: boo
 
 interface InternProfileProps {
   user: User;
+  onNavigate: (tab: string) => void;
 }
 
-export function InternProfile({ user }: InternProfileProps) {
+export function InternProfile({ user, onNavigate }: InternProfileProps) {
   const currentPoints = user.points || 0;
   const currentLevel = user.level || 1;
   const pointsToNextLevel = currentLevel * 100;
@@ -196,7 +197,9 @@ export function InternProfile({ user }: InternProfileProps) {
             <Card className="p-12 text-center">
               <Briefcase className="size-12 mx-auto mb-4 text-gray-400" />
               <p className="text-gray-500 mb-4">No completed tasks yet</p>
-              <Button>Browse Available Tasks</Button>
+              <Button onClick={() => onNavigate('browse')}>
+                Browse Available Tasks
+              </Button>
             </Card>
           )}
         </TabsContent>

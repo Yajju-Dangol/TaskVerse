@@ -91,7 +91,7 @@ export function InternDashboard({ user, onLogout }: InternDashboardProps) {
           </TabsContent>
 
           <TabsContent value="profile">
-            <InternProfile user={user} />
+            <InternProfile user={user} onNavigate={setActiveTab} />
           </TabsContent>
         </Tabs>
       </div>
