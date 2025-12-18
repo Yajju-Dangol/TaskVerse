@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { User } from '../App';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -15,6 +15,11 @@ interface BusinessDashboardProps {
 
 export function BusinessDashboard({ user, onLogout }: BusinessDashboardProps) {
   const [activeTab, setActiveTab] = useState('home');
+
+  // Ensure dashboard starts at top when user logs in / view mounts
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
