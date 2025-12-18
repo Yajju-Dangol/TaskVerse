@@ -52,18 +52,33 @@ export default function App() {
 
     const init = async () => {
       try {
-        // Always clear any existing Supabase session on first load so users must log in explicitly.
-        await supabase.auth.signOut();
+        // Check existing session so users stay logged in across refreshes.
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+
+        if (!isMounted) return;
+
+        if (error) {
+          console.error('Error getting auth session:', error);
+          setCurrentUser(null);
+          setLoading(false);
+        } else if (session?.user) {
+          await loadUserProfile(session.user.id);
+        } else {
+          setCurrentUser(null);
+          setLoading(false);
+        }
       } catch (err) {
-        console.error('Error clearing existing session on init:', err);
-      } finally {
+        console.error('Unexpected error getting auth session:', err);
         if (isMounted) {
           setCurrentUser(null);
           setLoading(false);
         }
       }
 
-      // After clearing any old session, listen for future auth changes (explicit login/logout)
+      // Listen for future auth changes (login/logout)
       const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (!isMounted) return;
 
@@ -73,7 +88,7 @@ export default function App() {
           return;
         }
 
-        if (event === 'SIGNED_IN' && session.user) {
+        if (session.user) {
           await loadUserProfile(session.user.id);
         }
       });
