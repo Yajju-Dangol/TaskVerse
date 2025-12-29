@@ -4,6 +4,11 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Building2, Mail, Calendar, MapPin, Globe, Users, Briefcase, Star, Edit } from 'lucide-react';
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
 
 interface BusinessProfileProps {
   user: User;
@@ -14,20 +19,35 @@ export function BusinessProfile({ user }: BusinessProfileProps) {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
-  // Mock business data
-  const businessInfo = {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({
     name: user.name,
-    email: user.email,
     industry: 'Technology',
     location: 'San Francisco, CA',
     website: 'www.example.com',
-    memberSince: 'Nov 2025',
     description: 'We are a growing tech startup focused on innovative solutions for modern businesses. We believe in nurturing young talent and providing real-world learning opportunities.',
+  });
+
+  // Mock business data
+  const businessInfo = {
+    name: formData.name,
+    email: user.email,
+    industry: formData.industry,
+    location: formData.location,
+    website: formData.website,
+    memberSince: 'Nov 2025',
+    description: formData.description,
     totalTasks: 12,
     activeTasks: 5,
     completedTasks: 7,
     averageRating: 4.8,
     totalInterns: 15,
+  };
+
+  const handleSave = () => {
+    // In a real app, this would make an API call
+    console.log('Saving profile:', formData);
+    setIsDialogOpen(false);
   };
 
   const recentInterns = [
@@ -53,7 +73,7 @@ export function BusinessProfile({ user }: BusinessProfileProps) {
                 {getInitials(businessInfo.name)}
               </AvatarFallback>
             </Avatar>
-            
+
             <div className="flex-1">
               <div className="flex items-start justify-between mb-4">
                 <div>
@@ -78,10 +98,82 @@ export function BusinessProfile({ user }: BusinessProfileProps) {
                     </div>
                   </div>
                 </div>
-                <Button variant="outline" size="sm">
-                  <Edit className="size-4 mr-2" />
-                  Edit Profile
-                </Button>
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Edit className="size-4 mr-2" />
+                      Edit Profile
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Edit Business Profile</DialogTitle>
+                      <DialogDescription>
+                        Make changes to your business profile here. Click save when you're done.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="name" className="text-right">
+                          Name
+                        </Label>
+                        <Input
+                          id="name"
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          className="col-span-3"
+                        />
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="industry" className="text-right">
+                          Industry
+                        </Label>
+                        <Input
+                          id="industry"
+                          value={formData.industry}
+                          onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
+                          className="col-span-3"
+                        />
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="location" className="text-right">
+                          Location
+                        </Label>
+                        <Input
+                          id="location"
+                          value={formData.location}
+                          onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                          className="col-span-3"
+                        />
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="website" className="text-right">
+                          Website
+                        </Label>
+                        <Input
+                          id="website"
+                          value={formData.website}
+                          onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                          className="col-span-3"
+                        />
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="description" className="text-right">
+                          About
+                        </Label>
+                        <Textarea
+                          id="description"
+                          value={formData.description}
+                          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                          className="col-span-3"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button type="submit" onClick={handleSave}>Save changes</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
 
               <div className="mt-4 pt-4 border-t">

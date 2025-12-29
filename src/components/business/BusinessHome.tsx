@@ -81,8 +81,8 @@ export function BusinessHome({ user, onNavigate }: BusinessHomeProps) {
       <div className="grid md:grid-cols-3 gap-6">
         <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => onNavigate('tasks')}>
           <CardHeader>
-            <Briefcase className="size-8 text-blue-600 mb-2" />
-            <CardTitle>Post New Task</CardTitle>
+            <Briefcase className="size-8 text-blue-600 mb-4" />
+            <CardTitle className="mb-2">Post New Task</CardTitle>
             <CardDescription>
               Create a new micro-task and find talented interns
             </CardDescription>
@@ -91,8 +91,8 @@ export function BusinessHome({ user, onNavigate }: BusinessHomeProps) {
 
         <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => onNavigate('submissions')}>
           <CardHeader>
-            <Users className="size-8 text-purple-600 mb-2" />
-            <CardTitle>Review Submissions</CardTitle>
+            <Users className="size-8 text-purple-600 mb-4" />
+            <CardTitle className="mb-2">Review Submissions</CardTitle>
             <CardDescription>
               Check pending work and provide feedback
             </CardDescription>
@@ -101,8 +101,8 @@ export function BusinessHome({ user, onNavigate }: BusinessHomeProps) {
 
         <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => onNavigate('tasks')}>
           <CardHeader>
-            <TrendingUp className="size-8 text-green-600 mb-2" />
-            <CardTitle>Manage Tasks</CardTitle>
+            <TrendingUp className="size-8 text-green-600 mb-4" />
+            <CardTitle className="mb-2">Manage Tasks</CardTitle>
             <CardDescription>
               View and edit your active task postings
             </CardDescription>
@@ -134,8 +134,8 @@ export function BusinessHome({ user, onNavigate }: BusinessHomeProps) {
                             submission.status === 'approved'
                               ? 'default'
                               : submission.status === 'rejected'
-                              ? 'destructive'
-                              : 'secondary'
+                                ? 'destructive'
+                                : 'secondary'
                           }
                         >
                           {submission.status}
@@ -153,11 +153,10 @@ export function BusinessHome({ user, onNavigate }: BusinessHomeProps) {
                             {Array.from({ length: 5 }).map((_, i) => (
                               <Star
                                 key={i}
-                                className={`size-4 ${
-                                  i < submission.rating!
+                                className={`size-4 ${i < submission.rating!
                                     ? 'fill-amber-400 text-amber-400'
                                     : 'text-gray-300'
-                                }`}
+                                  }`}
                               />
                             ))}
                           </div>
