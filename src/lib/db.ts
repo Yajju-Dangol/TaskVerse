@@ -47,20 +47,11 @@ export async function getBusinessStats(businessId: string) {
     { count: totalTasks },
     { count: activeTasks },
     { count: completedTasks },
-    { data: internData },
     { data: profile }
   ] = await Promise.all([
     supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('business_id', businessId),
     supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('business_id', businessId).eq('status', 'in-progress'),
     supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('business_id', businessId).eq('status', 'completed'),
-    supabase.from('applications')
-      .select('intern_id')
-      .eq('status', 'accepted')
-      .in('task_id', (
-        // Subquery to get task IDs for this business
-        supabase.from('tasks').select('id').eq('business_id', businessId)
-      ) as any), // Type cast for complex filter if needed, but for now we might need a better query or split it.
-    // Actually Supabase JS filter with inner query is tricky. Let's do it differently.
     supabase.from('profiles').select('average_rating').eq('id', businessId).single()
   ]);
 
