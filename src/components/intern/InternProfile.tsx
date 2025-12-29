@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { User } from '../../App';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -33,10 +33,27 @@ export function InternProfile({ user, onNavigate, readonly = false }: InternProf
   const [loading, setLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editName, setEditName] = useState(user.name);
+  const [activeSection, setActiveSection] = useState<'portfolio' | 'badges' | 'skills'>('portfolio');
+  const sectionScrollPositionRef = useRef(0);
 
   useEffect(() => {
     setEditName(user.name);
   }, [user.name]);
+
+  const handleSectionChange = (value: string) => {
+    // Remember the current scroll position before switching sections
+    if (typeof window !== 'undefined') {
+      sectionScrollPositionRef.current = window.scrollY;
+    }
+    setActiveSection(value as typeof activeSection);
+  };
+
+  useEffect(() => {
+    // Restore the previous scroll position after the section changes
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: sectionScrollPositionRef.current, behavior: 'auto' });
+    }
+  }, [activeSection]);
 
   useEffect(() => {
     const loadProfileData = async () => {
@@ -192,8 +209,8 @@ export function InternProfile({ user, onNavigate, readonly = false }: InternProf
         </CardContent>
       </Card>
 
-      {/* Tabs for Portfolio and Badges */}
-      <Tabs defaultValue="portfolio">
+      {/* Tabs for Portfolio, Badges, and Skills */}
+      <Tabs value={activeSection} onValueChange={handleSectionChange}>
         <TabsList>
           <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
           <TabsTrigger value="badges">Badges</TabsTrigger>
