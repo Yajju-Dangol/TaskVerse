@@ -18,8 +18,25 @@ export function BusinessDashboard({ user, onLogout }: BusinessDashboardProps) {
 
   // Ensure dashboard starts at top when user logs in / view mounts
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'auto' });
+    if (typeof window !== 'undefined') {
+      const initialTab = window.location.hash.replace('#', '');
+      if (initialTab) {
+        setActiveTab(initialTab);
+      }
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
   }, []);
+
+  const handleTabChange = (value: string) => {
+    if (typeof window !== 'undefined') {
+      if (value !== activeTab) {
+        window.location.hash = value;
+        window.location.reload();
+      }
+    } else {
+      setActiveTab(value);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -50,7 +67,7 @@ export function BusinessDashboard({ user, onLogout }: BusinessDashboardProps) {
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="grid w-full grid-cols-4 max-w-2xl mx-auto mb-8">
             <TabsTrigger value="home" className="flex items-center gap-2">
               <Home className="size-4" />
@@ -71,7 +88,7 @@ export function BusinessDashboard({ user, onLogout }: BusinessDashboardProps) {
           </TabsList>
 
           <TabsContent value="home">
-            <BusinessHome user={user} onNavigate={setActiveTab} />
+            <BusinessHome user={user} onNavigate={handleTabChange} />
           </TabsContent>
 
           <TabsContent value="tasks">

@@ -19,8 +19,25 @@ export function InternDashboard({ user, onLogout }: InternDashboardProps) {
 
   // Ensure dashboard starts at top when user logs in / view mounts
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'auto' });
+    if (typeof window !== 'undefined') {
+      const initialTab = window.location.hash.replace('#', '');
+      if (initialTab) {
+        setActiveTab(initialTab);
+      }
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
   }, []);
+
+  const handleTabChange = (value: string) => {
+    if (typeof window !== 'undefined') {
+      if (value !== activeTab) {
+        window.location.hash = value;
+        window.location.reload();
+      }
+    } else {
+      setActiveTab(value);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -55,7 +72,7 @@ export function InternDashboard({ user, onLogout }: InternDashboardProps) {
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="grid w-full grid-cols-5 max-w-2xl mx-auto mb-8">
             <TabsTrigger value="home" className="flex items-center gap-2">
               <Home className="size-4" />
@@ -80,7 +97,7 @@ export function InternDashboard({ user, onLogout }: InternDashboardProps) {
           </TabsList>
 
           <TabsContent value="home">
-            <InternHome user={user} onNavigate={setActiveTab} />
+            <InternHome user={user} onNavigate={handleTabChange} />
           </TabsContent>
 
           <TabsContent value="browse">
@@ -96,7 +113,7 @@ export function InternDashboard({ user, onLogout }: InternDashboardProps) {
           </TabsContent>
 
           <TabsContent value="profile">
-            <InternProfile user={user} onNavigate={setActiveTab} />
+            <InternProfile user={user} onNavigate={handleTabChange} />
           </TabsContent>
         </Tabs>
       </div>
