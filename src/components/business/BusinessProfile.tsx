@@ -5,15 +5,12 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Building2, Mail, Calendar, MapPin, Globe, Users, Briefcase, Star, Edit } from 'lucide-react';
-<<<<<<< HEAD
-import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-=======
-import { getBusinessStats, getRecentCollaborators, getProfile } from '../../lib/db';
->>>>>>> 735393d789f187ac855ffe774efa4e3ca69a62a3
+import { getBusinessStats, getRecentCollaborators, getProfile, updateProfile } from '../../lib/db';
+import { toast } from 'sonner';
 
 interface BusinessProfileProps {
   user: User;
@@ -30,6 +27,14 @@ export function BusinessProfile({ user }: BusinessProfileProps) {
   const [collaborators, setCollaborators] = useState<any[]>([]);
   const [profileData, setProfileData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    name: user.name,
+    industry: '',
+    location: '',
+    website: '',
+    description: '',
+  });
 
   useEffect(() => {
     async function fetchData() {
@@ -51,69 +56,62 @@ export function BusinessProfile({ user }: BusinessProfileProps) {
     fetchData();
   }, [user.id]);
 
+  useEffect(() => {
+    if (profileData) {
+      setFormData({
+        name: profileData.business_name || profileData.name || user.name,
+        industry: profileData.industry || '',
+        location: profileData.location || '',
+        website: profileData.website || '',
+        description: profileData.description || '',
+      });
+    }
+  }, [profileData, user.name]);
+
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
-<<<<<<< HEAD
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    name: user.name,
-    industry: 'Technology',
-    location: 'San Francisco, CA',
-    website: 'www.example.com',
-    description: 'We are a growing tech startup focused on innovative solutions for modern businesses. We believe in nurturing young talent and providing real-world learning opportunities.',
-  });
-
-  // Mock business data
-  const businessInfo = {
-    name: formData.name,
-    email: user.email,
-    industry: formData.industry,
-    location: formData.location,
-    website: formData.website,
-    memberSince: 'Nov 2025',
-    description: formData.description,
-    totalTasks: 12,
-    activeTasks: 5,
-    completedTasks: 7,
-    averageRating: 4.8,
-    totalInterns: 15,
-  };
-
-  const handleSave = () => {
-    // In a real app, this would make an API call
-    console.log('Saving profile:', formData);
-    setIsDialogOpen(false);
-  };
-
-  const recentInterns = [
-    { name: 'Sarah Johnson', tasks: 3, rating: 5 },
-    { name: 'Michael Chen', tasks: 2, rating: 5 },
-    { name: 'Emily Rodriguez', tasks: 4, rating: 4 },
-    { name: 'David Kim', tasks: 2, rating: 5 },
-  ];
-=======
   if (loading) {
     return <div className="text-center py-10">Loading profile data...</div>;
   }
 
   // Merge user prop with fetched profile data
   const businessInfo = {
-    name: profileData?.business_name || profileData?.name || user.name,
+    name: profileData?.business_name || profileData?.name || formData.name || user.name,
     email: user.email,
-    industry: profileData?.industry || 'Technology', // Fallback as field might not exist
-    location: profileData?.location || 'Location not set',
-    website: profileData?.website || '',
+    industry: profileData?.industry || formData.industry || 'Industry not set',
+    location: profileData?.location || formData.location || 'Location not set',
+    website: profileData?.website || formData.website || '',
     memberSince: profileData?.created_at ? new Date(profileData.created_at).toLocaleDateString() : 'N/A',
-    description: profileData?.description || 'No description provided.',
+    description: profileData?.description || formData.description || 'No description provided.',
     totalTasks: stats.totalTasks,
     activeTasks: stats.activeTasks,
     completedTasks: stats.completedTasks,
     averageRating: stats.averageRating,
     totalInterns: stats.totalInterns,
   };
->>>>>>> 735393d789f187ac855ffe774efa4e3ca69a62a3
+
+  const handleSave = async () => {
+    const payload = {
+      business_name: formData.name,
+      name: formData.name,
+      industry: formData.industry,
+      location: formData.location,
+      website: formData.website,
+      description: formData.description,
+    };
+
+    const success = await updateProfile(user.id, payload);
+
+    if (success) {
+      setProfileData((prev: any) => ({ ...(prev || {}), ...payload }));
+      toast.success('Profile updated successfully');
+      setIsDialogOpen(false);
+    } else {
+      toast.error('Failed to update profile');
+    }
+  };
 
   return (
     <div className="space-y-6">
