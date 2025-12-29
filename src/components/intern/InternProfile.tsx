@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { User } from '../../App';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -7,17 +7,22 @@ import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Progress } from '../ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Trophy, Award, Star, Briefcase, Mail, Calendar, Edit, Download } from 'lucide-react';
-import { getBadges, getInternBadges, getInternPortfolio, type InternPortfolioItem } from '../../lib/db';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { getBadges, getInternBadges, getInternPortfolio, updateProfile, type InternPortfolioItem } from '../../lib/db';
+import { toast } from 'sonner';
 import type { Database } from '../../lib/supabase';
 
 type BadgeRow = Database['public']['Tables']['badges']['Row'] & { unlocked?: boolean };
 
 interface InternProfileProps {
   user: User;
-  onNavigate: (tab: string) => void;
+  onNavigate?: (tab: string) => void;
+  readonly?: boolean;
 }
 
-export function InternProfile({ user, onNavigate }: InternProfileProps) {
+export function InternProfile({ user, onNavigate, readonly = false }: InternProfileProps) {
   const currentPoints = user.points || 0;
   const currentLevel = user.level || 1;
   const pointsToNextLevel = currentLevel * 100;
@@ -26,6 +31,29 @@ export function InternProfile({ user, onNavigate }: InternProfileProps) {
   const [badges, setBadges] = useState<BadgeRow[]>([]);
   const [portfolio, setPortfolio] = useState<InternPortfolioItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editName, setEditName] = useState(user.name);
+  const [activeSection, setActiveSection] = useState<'portfolio' | 'badges' | 'skills'>('portfolio');
+  const sectionScrollPositionRef = useRef(0);
+
+  useEffect(() => {
+    setEditName(user.name);
+  }, [user.name]);
+
+  const handleSectionChange = (value: string) => {
+    // Remember the current scroll position before switching sections
+    if (typeof window !== 'undefined') {
+      sectionScrollPositionRef.current = window.scrollY;
+    }
+    setActiveSection(value as typeof activeSection);
+  };
+
+  useEffect(() => {
+    // Restore the previous scroll position after the section changes
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: sectionScrollPositionRef.current, behavior: 'auto' });
+    }
+  }, [activeSection]);
 
   useEffect(() => {
     const loadProfileData = async () => {
@@ -61,6 +89,26 @@ export function InternProfile({ user, onNavigate }: InternProfileProps) {
   const averageRating =
     portfolio.reduce((acc, item) => acc + (item.rating || 0), 0) / (portfolio.length || 1);
 
+  const handleUpdateProfile = async () => {
+    if (!editName.trim()) {
+      toast.error('Name cannot be empty');
+      return;
+    }
+
+    const success = await updateProfile(user.id, {
+      name: editName,
+    });
+
+    if (success) {
+      toast.success('Profile updated successfully');
+      setIsEditDialogOpen(false);
+      // Typically we'd reload user data here, but for now we rely on the parent or page reload
+      window.location.reload();
+    } else {
+      toast.error('Failed to update profile');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -77,7 +125,7 @@ export function InternProfile({ user, onNavigate }: InternProfileProps) {
                 {getInitials(user.name)}
               </AvatarFallback>
             </Avatar>
-            
+
             <div className="flex-1">
               <div className="flex items-start justify-between mb-4">
                 <div>
@@ -91,10 +139,37 @@ export function InternProfile({ user, onNavigate }: InternProfileProps) {
                     <span>Member since Nov 2025</span>
                   </div>
                 </div>
-                <Button variant="outline" size="sm">
-                  <Edit className="size-4 mr-2" />
-                  Edit Profile
-                </Button>
+                {!readonly && (
+                  <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <Edit className="size-4 mr-2" />
+                        Edit Profile
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Edit Profile</DialogTitle>
+                        <DialogDescription>
+                          Update your personal information
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="name">Full Name</Label>
+                          <Input
+                            id="name"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                          />
+                        </div>
+                        <Button className="w-full" onClick={handleUpdateProfile}>
+                          Save Changes
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -134,8 +209,8 @@ export function InternProfile({ user, onNavigate }: InternProfileProps) {
         </CardContent>
       </Card>
 
-      {/* Tabs for Portfolio and Badges */}
-      <Tabs defaultValue="portfolio">
+      {/* Tabs for Portfolio, Badges, and Skills */}
+      <Tabs value={activeSection} onValueChange={handleSectionChange}>
         <TabsList>
           <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
           <TabsTrigger value="badges">Badges</TabsTrigger>
@@ -146,10 +221,12 @@ export function InternProfile({ user, onNavigate }: InternProfileProps) {
         <TabsContent value="portfolio" className="mt-6 space-y-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl">Completed Projects</h3>
-            <Button variant="outline" size="sm">
-              <Download className="size-4 mr-2" />
-              Export Portfolio
-            </Button>
+            {onNavigate && (
+              <Button variant="outline" size="sm">
+                <Download className="size-4 mr-2" />
+                Export Portfolio
+              </Button>
+            )}
           </div>
 
           {portfolio.map((item) => (
@@ -197,9 +274,11 @@ export function InternProfile({ user, onNavigate }: InternProfileProps) {
             <Card className="p-12 text-center">
               <Briefcase className="size-12 mx-auto mb-4 text-gray-400" />
               <p className="text-gray-500 mb-4">No completed tasks yet</p>
-              <Button onClick={() => onNavigate('browse')}>
-                Browse Available Tasks
-              </Button>
+              {onNavigate && (
+                <Button onClick={() => onNavigate('browse')}>
+                  Browse Available Tasks
+                </Button>
+              )}
             </Card>
           )}
         </TabsContent>
@@ -258,7 +337,7 @@ export function InternProfile({ user, onNavigate }: InternProfileProps) {
                 {Array.from(new Set(portfolio.flatMap(item => item.skills))).map((skill) => {
                   const tasksWithSkill = portfolio.filter(item => item.skills.includes(skill));
                   const proficiency = Math.min((tasksWithSkill.length / 5) * 100, 100);
-                  
+
                   return (
                     <div key={skill}>
                       <div className="flex items-center justify-between mb-2">

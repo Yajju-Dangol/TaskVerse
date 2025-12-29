@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Plus, Briefcase, Users, Calendar, Trophy, Edit, Trash2 } from 'lucide-react';
-import { getTasks, createTask, deleteTask, getApplications } from '../../lib/db';
+import { getTasks, createTask, updateTask, deleteTask, getApplications } from '../../lib/db';
 import { toast } from 'sonner';
 import type { Database } from '../../lib/supabase';
 
@@ -32,6 +32,8 @@ export function ManageTasks({ user }: ManageTasksProps) {
   const [taskDeadline, setTaskDeadline] = useState('');
   const [taskSkills, setTaskSkills] = useState('');
   const [loading, setLoading] = useState(true);
+  const [totalApplications, setTotalApplications] = useState(0);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     loadTasks();
@@ -41,13 +43,18 @@ export function ManageTasks({ user }: ManageTasksProps) {
     setLoading(true);
     const tasks = await getTasks({ businessId: user.id });
     setMyTasks(tasks);
+
+    // Fetch total applications for this business
+    const applications = await getApplications({ businessId: user.id });
+    setTotalApplications(applications.length);
+
     setLoading(false);
   };
 
   const activeTasks = myTasks.filter(t => t.status === 'open');
   const completedTasks = myTasks.filter(t => t.status === 'completed');
 
-  const handleCreateTask = async () => {
+  const handleSaveTask = async () => {
     if (!taskTitle || !taskDescription || !taskCategory || !taskDifficulty || !taskPoints) {
       toast.error('Please fill in all required fields');
       return;
@@ -55,7 +62,7 @@ export function ManageTasks({ user }: ManageTasksProps) {
 
     const skillsArray = taskSkills.split(',').map(s => s.trim()).filter(Boolean);
 
-    const task = await createTask({
+    const baseTaskData = {
       business_id: user.id,
       title: taskTitle,
       description: taskDescription,
@@ -65,26 +72,58 @@ export function ManageTasks({ user }: ManageTasksProps) {
       duration: taskDuration || null,
       deadline: taskDeadline || null,
       skills: skillsArray,
-      status: 'open',
-    });
+    };
 
-    if (task) {
-      toast.success('Task created successfully!', {
-        description: 'Your task is now live and visible to interns.'
+    let success = false;
+
+    if (editingTaskId) {
+      success = await updateTask(editingTaskId, baseTaskData);
+      if (success) toast.success('Task updated successfully');
+    } else {
+      const newTask = await createTask({
+        ...baseTaskData,
+        status: 'open',
       });
-      setTaskTitle('');
-      setTaskDescription('');
-      setTaskCategory('');
-      setTaskDifficulty('');
-      setTaskPoints('');
-      setTaskDuration('');
-      setTaskDeadline('');
-      setTaskSkills('');
+      success = !!newTask;
+      if (success) {
+        toast.success('Task created successfully!', {
+          description: 'Your task is now live and visible to interns.'
+        });
+      }
+    }
+
+    if (success) {
+      resetForm();
       setIsCreateDialogOpen(false);
       loadTasks();
     } else {
-      toast.error('Failed to create task');
+      toast.error(editingTaskId ? 'Failed to update task' : 'Failed to create task');
     }
+  };
+
+  const resetForm = () => {
+    setTaskTitle('');
+    setTaskDescription('');
+    setTaskCategory('');
+    setTaskDifficulty('');
+    setTaskPoints('');
+    setTaskDuration('');
+    setTaskDeadline('');
+    setTaskSkills('');
+    setEditingTaskId(null);
+  };
+
+  const handleEditTask = (task: Task) => {
+    setTaskTitle(task.title);
+    setTaskDescription(task.description);
+    setTaskCategory(task.category);
+    setTaskDifficulty(task.difficulty);
+    setTaskPoints(task.points.toString());
+    setTaskDuration(task.duration || '');
+    setTaskDeadline(task.deadline || '');
+    setTaskSkills(task.skills?.join(', ') || '');
+    setEditingTaskId(task.id);
+    setIsCreateDialogOpen(true);
   };
 
   const handleDeleteTask = async (taskId: string) => {
@@ -116,7 +155,7 @@ export function ManageTasks({ user }: ManageTasksProps) {
               <Badge variant="outline">{task.category}</Badge>
               <Badge variant={
                 task.difficulty === 'Beginner' ? 'secondary' :
-                task.difficulty === 'Intermediate' ? 'default' : 'destructive'
+                  task.difficulty === 'Intermediate' ? 'default' : 'destructive'
               }>
                 {task.difficulty}
               </Badge>
@@ -162,13 +201,13 @@ export function ManageTasks({ user }: ManageTasksProps) {
             )}
 
             <div className="flex gap-2 pt-2">
-              <Button variant="outline" size="sm" className="flex-1">
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditTask(task)}>
                 <Edit className="size-4 mr-1" />
                 Edit
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="flex-1 text-red-600 hover:text-red-700"
                 onClick={() => handleDeleteTask(task.id)}
               >
@@ -190,18 +229,21 @@ export function ManageTasks({ user }: ManageTasksProps) {
           <h2 className="text-3xl mb-2">Manage Tasks</h2>
           <p className="text-gray-600">Create, edit, and manage your task postings</p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
+          if (!open) resetForm();
+          setIsCreateDialogOpen(open);
+        }}>
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={resetForm}>
               <Plus className="size-4 mr-2" />
               Create Task
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Create New Task</DialogTitle>
+              <DialogTitle>{editingTaskId ? 'Edit Task' : 'Create New Task'}</DialogTitle>
               <DialogDescription>
-                Post a new micro-task for interns to complete
+                {editingTaskId ? 'Update the details of your task' : 'Post a new micro-task for interns to complete'}
               </DialogDescription>
             </DialogHeader>
 
@@ -304,10 +346,13 @@ export function ManageTasks({ user }: ManageTasksProps) {
               </div>
 
               <div className="flex gap-2 pt-4">
-                <Button className="flex-1" onClick={handleCreateTask}>
-                  Create Task
+                <Button className="flex-1" onClick={handleSaveTask}>
+                  {editingTaskId ? 'Update Task' : 'Create Task'}
                 </Button>
-                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                <Button variant="outline" onClick={() => {
+                  resetForm();
+                  setIsCreateDialogOpen(false);
+                }}>
                   Cancel
                 </Button>
               </div>
@@ -337,7 +382,7 @@ export function ManageTasks({ user }: ManageTasksProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl">24</p>
+            <p className="text-3xl">{loading ? '...' : totalApplications}</p>
           </CardContent>
         </Card>
         <Card>
@@ -380,7 +425,10 @@ export function ManageTasks({ user }: ManageTasksProps) {
             <Card className="p-12 text-center">
               <Briefcase className="size-12 mx-auto mb-4 text-gray-400" />
               <p className="text-gray-500 mb-4">No active tasks</p>
-              <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <Button onClick={() => {
+                resetForm();
+                setIsCreateDialogOpen(true);
+              }}>
                 <Plus className="size-4 mr-2" />
                 Create Your First Task
               </Button>

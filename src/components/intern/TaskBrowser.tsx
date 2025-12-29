@@ -137,8 +137,11 @@ export function TaskBrowser({ user }: TaskBrowserProps) {
 
       {/* Task Grid */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredTasks.map((task) => (
-          <Card key={task.id} className="hover:shadow-lg transition-shadow flex flex-col">
+      {filteredTasks.map((task) => {
+        const isDialogOpen = selectedTask?.id === task.id;
+
+        return (
+        <Card key={task.id} className="hover:shadow-lg transition-shadow flex flex-col">
             <CardHeader>
               <div className="flex items-start justify-between gap-2 mb-2">
                 <Badge variant={
@@ -187,7 +190,17 @@ export function TaskBrowser({ user }: TaskBrowserProps) {
                 )}
               </div>
               
-              <Dialog>
+              <Dialog
+                open={isDialogOpen}
+                onOpenChange={(open) => {
+                  if (open) {
+                    setSelectedTask(task);
+                  } else {
+                    setSelectedTask(null);
+                    setApplicationText('');
+                  }
+                }}
+              >
                 <DialogTrigger asChild>
                   <Button className="w-full mt-4" onClick={() => setSelectedTask(task)}>
                     View & Apply
@@ -268,7 +281,7 @@ export function TaskBrowser({ user }: TaskBrowserProps) {
               </Dialog>
             </CardContent>
           </Card>
-        ))}
+        )})}
       </div>
 
       {loading ? (
