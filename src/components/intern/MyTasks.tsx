@@ -9,23 +9,20 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Input } from '../ui/input';
 import { Clock, CheckCircle, AlertCircle, Upload, Star } from 'lucide-react';
-import { getApplications, getTask, createSubmission, uploadFile } from '../../lib/db';
-import { getSubmissions } from '../../lib/db';
+import { getApplications, getTask, createSubmission, uploadFile, getSubmissions, TaskWithBusiness, SubmissionWithMeta } from '../../lib/db';
 import { toast } from 'sonner';
 import type { Database } from '../../lib/supabase';
 
-type Task = Database['public']['Tables']['tasks']['Row'] & { business_name?: string };
 type Application = Database['public']['Tables']['applications']['Row'];
-type Submission = Database['public']['Tables']['submissions']['Row'];
 
 interface MyTasksProps {
   user: User;
 }
 
 interface MyTask {
-  task: Task;
+  task: TaskWithBusiness;
   application: Application;
-  submission?: Submission;
+  submission?: SubmissionWithMeta;
   status: 'in-progress' | 'submitted' | 'completed' | 'needs-revision';
 }
 
@@ -42,34 +39,45 @@ export function MyTasks({ user }: MyTasksProps) {
 
   const loadMyTasks = async () => {
     setLoading(true);
-    const applications = await getApplications({ internId: user.id, status: 'accepted' });
-    
-    const tasksWithData = await Promise.all(
-      applications.map(async (app) => {
-        const task = await getTask(app.task_id);
-        if (!task) return null;
-        
-        const submissions = await getSubmissions({ taskId: app.task_id, internId: user.id });
-        const submission = submissions[0];
-        
-        let status: 'in-progress' | 'submitted' | 'completed' | 'needs-revision' = 'in-progress';
-        if (submission) {
-          if (submission.status === 'approved') status = 'completed';
-          else if (submission.status === 'rejected') status = 'needs-revision';
-          else status = 'submitted';
-        }
-        
-        return {
-          task: task as Task,
-          application: app,
-          submission,
-          status,
-        };
-      })
-    );
-    
-    setMyTasks(tasksWithData.filter(Boolean) as MyTask[]);
-    setLoading(false);
+
+    try {
+      // Fetch all data in parallel to ensure consistency
+      const [applications, submissions] = await Promise.all([
+        getApplications({ internId: user.id }),
+        getSubmissions({ internId: user.id })
+      ]);
+
+      const tasksWithData = await Promise.all(
+        applications.map(async (app) => {
+          const task = await getTask(app.task_id);
+          if (!task) return null;
+
+          // Get the latest submission for this task (getSubmissions returns ordered by date desc)
+          const submission = submissions.find(s => s.task_id === app.task_id);
+
+          let status: 'in-progress' | 'submitted' | 'completed' | 'needs-revision' = 'in-progress';
+          if (submission) {
+            if (submission.status === 'approved') status = 'completed';
+            else if (submission.status === 'rejected') status = 'needs-revision';
+            else status = 'submitted';
+          }
+
+          return {
+            task,
+            application: app,
+            submission,
+            status,
+          };
+        })
+      );
+
+      setMyTasks(tasksWithData.filter(t => t !== null) as MyTask[]);
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+      toast.error('Failed to load tasks');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inProgressTasks = myTasks.filter(t => t.status === 'in-progress');
@@ -97,6 +105,8 @@ export function MyTasks({ user }: MyTasksProps) {
       description: submissionText,
       attachment_url: attachmentUrl,
       status: 'pending',
+      rating: null,
+      feedback: null,
     });
 
     if (submission) {
@@ -118,8 +128,8 @@ export function MyTasks({ user }: MyTasksProps) {
         <div className="flex items-start justify-between gap-2 mb-2">
           <Badge variant={
             myTask.status === 'completed' ? 'default' :
-            myTask.status === 'submitted' ? 'secondary' :
-            myTask.status === 'needs-revision' ? 'destructive' : 'outline'
+              myTask.status === 'submitted' ? 'secondary' :
+                myTask.status === 'needs-revision' ? 'destructive' : 'outline'
           }>
             {myTask.status === 'in-progress' && <Clock className="size-3 mr-1" />}
             {myTask.status === 'completed' && <CheckCircle className="size-3 mr-1" />}
@@ -132,14 +142,14 @@ export function MyTasks({ user }: MyTasksProps) {
           </span>
         </div>
         <CardTitle className="text-lg">{myTask.task.title}</CardTitle>
-        <CardDescription>{(myTask.task as any).business_name || 'Business'}</CardDescription>
+        <CardDescription>{myTask.task.business_name || 'Business'}</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
           <p className="text-sm text-gray-600 line-clamp-2">
             {myTask.task.description}
           </p>
-          
+
           {myTask.status === 'completed' && myTask.submission?.rating && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-2">
@@ -187,7 +197,7 @@ export function MyTasks({ user }: MyTasksProps) {
                     Upload your completed work for "{myTask.task.title}"
                   </DialogDescription>
                 </DialogHeader>
-                
+
                 <div className="space-y-4">
                   <div>
                     <Label htmlFor="submission-desc">Description of Work</Label>

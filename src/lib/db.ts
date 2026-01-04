@@ -162,10 +162,13 @@ export async function getRecentCollaborators(businessId: string) {
   }));
 }
 
-export async function getTask(taskId: string): Promise<Task | null> {
+export async function getTask(taskId: string): Promise<TaskWithBusiness | null> {
   const { data, error } = await supabase
     .from('tasks')
-    .select('*')
+    .select(`
+      *,
+      profiles!tasks_business_id_fkey(name, business_name)
+    `)
     .eq('id', taskId)
     .single();
 
@@ -174,7 +177,10 @@ export async function getTask(taskId: string): Promise<Task | null> {
     return null;
   }
 
-  return data;
+  return {
+    ...data,
+    business_name: data.profiles?.business_name || data.profiles?.name,
+  } as TaskWithBusiness;
 }
 
 export async function createTask(task: Database['public']['Tables']['tasks']['Insert']): Promise<Task | null> {

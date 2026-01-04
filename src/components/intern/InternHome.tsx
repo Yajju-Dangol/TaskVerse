@@ -5,7 +5,7 @@ import { Button } from '../ui/button';
 import { Progress } from '../ui/progress';
 import { Badge } from '../ui/badge';
 import { Trophy, Target, Award, TrendingUp, ArrowRight, Zap } from 'lucide-react';
-import { getTasks, getBadges, getInternBadges, getApplications } from '../../lib/db';
+import { getTasks, getBadges, getInternBadges, getApplications, getSubmissions } from '../../lib/db';
 import { supabase } from '../../lib/supabase';
 import type { Database } from '../../lib/supabase';
 
@@ -29,24 +29,29 @@ export function InternHome({ user, onNavigate }: InternHomeProps) {
   }, []);
 
   const loadData = async () => {
-    const [tasks, allBadges, myBadges, applications] = await Promise.all([
+    const [tasks, allBadges, myBadges, applications, submissions] = await Promise.all([
       getTasks({ status: 'open' }),
       getBadges(),
       getInternBadges(user.id),
       getApplications({ internId: user.id, status: 'accepted' }),
+      getSubmissions({ internId: user.id, status: 'approved' }),
     ]);
 
     setRecentTasks(tasks.slice(0, 3));
     setBadges(allBadges);
     setUnlockedBadgeIds(new Set(myBadges.map(b => b.badge_id)));
-    setActiveTasksCount(applications.length);
+
+    // Calculate active tasks: All accepted applications minus completed (approved) submissions
+    const completedTaskIds = new Set(submissions.map(s => s.task_id));
+    const activeApps = applications.filter(app => !completedTaskIds.has(app.task_id));
+    setActiveTasksCount(activeApps.length);
   };
 
   const currentPoints = user.points || 0;
   const currentLevel = user.level || 1;
   const pointsToNextLevel = currentLevel * 100;
   const progressToNextLevel = ((currentPoints % 100) / pointsToNextLevel) * 100;
-  
+
   const unlockedBadges = badges.filter(b => unlockedBadgeIds.has(b.id));
   const nextBadge = badges.find(b => !unlockedBadgeIds.has(b.id));
 
@@ -150,7 +155,7 @@ export function InternHome({ user, onNavigate }: InternHomeProps) {
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <Badge variant={
                     task.difficulty === 'Beginner' ? 'secondary' :
-                    task.difficulty === 'Intermediate' ? 'default' : 'destructive'
+                      task.difficulty === 'Intermediate' ? 'default' : 'destructive'
                   }>
                     {task.difficulty}
                   </Badge>
