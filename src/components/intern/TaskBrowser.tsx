@@ -30,7 +30,7 @@ export function TaskBrowser({ user }: TaskBrowserProps) {
 
   useEffect(() => {
     loadTasks();
-  }, [categoryFilter, difficultyFilter, searchQuery]);
+  }, [categoryFilter, difficultyFilter]);
 
   const loadTasks = async () => {
     setLoading(true);
@@ -38,7 +38,8 @@ export function TaskBrowser({ user }: TaskBrowserProps) {
       status: 'open',
       category: categoryFilter,
       difficulty: difficultyFilter,
-      search: searchQuery || undefined,
+      // Search is now handled client-side for better flexibility
+      // search: searchQuery || undefined, 
     });
     setTasks(fetchedTasks);
     setLoading(false);
@@ -48,9 +49,24 @@ export function TaskBrowser({ user }: TaskBrowserProps) {
   
   const filteredTasks = tasks.filter(task => {
     if (searchQuery) {
-      const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           task.description.toLowerCase().includes(searchQuery.toLowerCase());
-      if (!matchesSearch) return false;
+      const query = searchQuery.toLowerCase();
+      const title = task.title.toLowerCase();
+      const description = task.description.toLowerCase();
+      
+      // Check if title contains ALL characters from the search query (fuzzy match)
+      const searchChars = query.split('').filter(c => c.trim() !== ''); // Ignore spaces in char check if desired, or keep them. 
+      // "alphabet y and t" -> user implies non-whitespace chars. 
+      // Let's filter out spaces for the fuzzy check to be more forgiving? 
+      // If title is "YouTube", and I type "y t", expecting match? 
+      // "YouTube" has no space. "y t" has space.
+      // Usually fuzzy search ignores spaces in query or maps them to anything.
+      // I'll filter out whitespace from the query characters we check for.
+      const matchesTitle = searchChars.every(char => title.includes(char));
+      
+      // Keep description search as substring to avoid noise (too many matches if we just check for letters)
+      const matchesDescription = description.includes(query);
+      
+      if (!matchesTitle && !matchesDescription) return false;
     }
     return true;
   });
