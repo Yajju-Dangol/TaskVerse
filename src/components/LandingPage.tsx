@@ -4,6 +4,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Badge } from './ui/badge';
 import { Briefcase, Target, Award, TrendingUp, Zap, Users } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -17,6 +18,30 @@ export function LandingPage() {
   const [name, setName] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole>('intern');
   const [loading, setLoading] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: window.location.origin, // You might need to adjust this depending on your setup
+      });
+
+      if (error) throw error;
+
+      toast.success('Password reset link sent!', {
+        description: 'Check your email for instructions to reset your password.',
+      });
+      setAuthMode('login');
+      setResetEmail('');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to send reset link');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,7 +106,7 @@ export function LandingPage() {
           <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
             Build real skills through verified micro-tasks. Connect interns with businesses for meaningful, experience-building opportunities.
           </p>
-          
+
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto mb-16">
             <Card>
               <CardHeader>
@@ -92,7 +117,7 @@ export function LandingPage() {
                 <p className="text-gray-600">Complete verified micro-tasks from real businesses</p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <Award className="size-8 text-purple-600 mb-2" />
@@ -102,7 +127,7 @@ export function LandingPage() {
                 <p className="text-gray-600">Gain points, badges, and build a credible portfolio</p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <TrendingUp className="size-8 text-green-600 mb-2" />
@@ -123,8 +148,8 @@ export function LandingPage() {
                 {authMode === 'login' ? 'Welcome Back' : 'Get Started'}
               </CardTitle>
               <CardDescription>
-                {authMode === 'login' 
-                  ? 'Sign in to continue your journey' 
+                {authMode === 'login'
+                  ? 'Sign in to continue your journey'
                   : 'Create your account to start building experience'}
               </CardDescription>
             </CardHeader>
@@ -134,7 +159,7 @@ export function LandingPage() {
                   <TabsTrigger value="login">Login</TabsTrigger>
                   <TabsTrigger value="signup">Sign Up</TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="login">
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
@@ -158,6 +183,16 @@ export function LandingPage() {
                         onChange={(e) => setPassword(e.target.value)}
                         required
                       />
+                      <div className="text-right mt-1">
+                        <Button
+                          type="button"
+                          variant="link"
+                          className="p-0 h-auto text-sm text-blue-600 hover:underline"
+                          onClick={() => setAuthMode('forgot-password' as any)}
+                        >
+                          Forgot password?
+                        </Button>
+                      </div>
                     </div>
                     <div>
                       <Label>I am a</Label>
@@ -191,7 +226,7 @@ export function LandingPage() {
                     </Button>
                   </form>
                 </TabsContent>
-                
+
                 <TabsContent value="signup">
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
@@ -262,7 +297,7 @@ export function LandingPage() {
               </Tabs>
             </CardContent>
           </Card>
-          
+
           <div className="mt-8 text-center">
             <div className="flex items-center justify-center gap-4 text-sm text-gray-500">
               <div className="flex items-center gap-1">
@@ -281,6 +316,38 @@ export function LandingPage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={authMode === 'forgot-password'} onOpenChange={(open) => !open && setAuthMode('login')}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Enter your email address and we'll send you a link to reset your password.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleResetPassword} className="space-y-4 pt-4">
+            <div>
+              <Label htmlFor="reset-email">Email</Label>
+              <Input
+                id="reset-email"
+                type="email"
+                placeholder="you@example.com"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setAuthMode('login')}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Sending link...' : 'Send Reset Link'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
