@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { LandingPage } from './components/LandingPage';
 import { InternDashboard } from './components/InternDashboard';
 import { BusinessDashboard } from './components/BusinessDashboard';
+import { ResetPassword } from './components/ResetPassword';
 import { Toaster } from './components/ui/sonner';
 import { supabase } from './lib/supabase';
 import { getProfile } from './lib/db';
@@ -21,6 +22,7 @@ export interface User {
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
 
   const loadUserProfile = async (userId: string) => {
     try {
@@ -51,6 +53,14 @@ export default function App() {
     let subscription: { unsubscribe: () => void } | null = null;
 
     const init = async () => {
+      // Check for recovery parameter in URL
+      const params = new URLSearchParams(window.location.search);
+      const isRecovery = params.get('type') === 'recovery';
+
+      if (isRecovery) {
+        setShowPasswordReset(true);
+      }
+
       try {
         // Check existing session so users stay logged in across refreshes.
         const {
@@ -82,9 +92,27 @@ export default function App() {
       const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (!isMounted) return;
 
+        console.log('Auth state change:', event);
+
+        if (event === 'USER_UPDATED') {
+          setShowPasswordReset(false);
+          // Clear query params to prevent re-triggering recovery mode on reload
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, '', newUrl);
+
+          if (session?.user) {
+            await loadUserProfile(session.user.id);
+          }
+        }
+
+        if (event === 'PASSWORD_RECOVERY') {
+          setShowPasswordReset(true);
+        }
+
         if (event === 'SIGNED_OUT' || !session?.user) {
           setCurrentUser(null);
           setLoading(false);
+          setShowPasswordReset(false); // Reset this just in case
           return;
         }
 
@@ -132,6 +160,10 @@ export default function App() {
         </div>
       </div>
     );
+  }
+
+  if (showPasswordReset) {
+    return <LandingPage showResetPasswordDialog={true} />;
   }
 
   if (!currentUser) {

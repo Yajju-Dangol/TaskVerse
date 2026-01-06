@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -11,8 +11,10 @@ import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import type { UserRole } from '../App';
 
-export function LandingPage() {
-  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+export function LandingPage({ showResetPasswordDialog = false }: { showResetPasswordDialog?: boolean }) {
+  const [authMode, setAuthMode] = useState<'login' | 'signup' | 'forgot-password' | 'reset-password-confirm'>(
+    showResetPasswordDialog ? 'reset-password-confirm' : 'login'
+  );
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -20,13 +22,25 @@ export function LandingPage() {
   const [loading, setLoading] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
 
+  // New password state
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [updateError, setUpdateError] = useState<string | null>(null);
+
+  // Update auth mode when prop changes
+  useEffect(() => {
+    if (showResetPasswordDialog && authMode !== 'reset-password-confirm') {
+      setAuthMode('reset-password-confirm');
+    }
+  }, [showResetPasswordDialog, authMode]);
+
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: window.location.origin, // You might need to adjust this depending on your setup
+        redirectTo: `${window.location.origin}?type=recovery`,
       });
 
       if (error) throw error;
@@ -39,6 +53,39 @@ export function LandingPage() {
     } catch (error: any) {
       toast.error(error.message || 'Failed to send reset link');
     } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUpdateError(null); // Clear previous errors
+
+    if (newPassword !== confirmPassword) {
+      setUpdateError("Passwords don't match");
+      toast.error("Passwords don't match");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+      if (error) throw error;
+
+      toast.success('Password updated successfully!');
+      // Hard reload to reset session state/auth listeners completely
+      window.location.replace('/');
+    } catch (error: any) {
+      console.error('Error updating password:', error);
+      let errMsg = error.message || 'Failed to update password';
+
+      if (errMsg.includes('New password should be different from the old password')) {
+        errMsg = 'New password cannot be the same as the old password. Please choose a different one.';
+      }
+
+      setUpdateError(errMsg);
+      toast.error(errMsg);
       setLoading(false);
     }
   };
@@ -348,6 +395,56 @@ export function LandingPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+
+      {/* Update Password Dialog */}
+      <Dialog open={authMode === 'reset-password-confirm'} onOpenChange={(open) => {
+        if (!open) setAuthMode('login');
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Password</DialogTitle>
+            <DialogDescription>
+              Please enter your new password to complete the reset process.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdatePassword} className="space-y-4 pt-4">
+            {updateError && (
+              <div className="bg-red-50 text-red-600 border border-red-200 p-3 rounded-md text-sm">
+                {updateError}
+              </div>
+            )}
+            <div>
+              <Label htmlFor="new-password">New Password</Label>
+              <Input
+                id="new-password"
+                type="password"
+                placeholder="••••••••"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </div>
+            <div>
+              <Label htmlFor="confirm-password">Confirm Password</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="submit" disabled={loading} className="w-full">
+                {loading ? 'Updating...' : 'Update Password'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div >
   );
 }
