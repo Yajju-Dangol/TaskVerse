@@ -310,7 +310,13 @@ export function ManageTasks({ user }: ManageTasksProps) {
                     type="number"
                     placeholder="e.g., 50"
                     value={taskPoints}
-                    onChange={(e) => setTaskPoints(e.target.value)}
+                    min="0"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '' || (!isNaN(parseInt(val)) && parseInt(val) >= 0)) {
+                        setTaskPoints(val);
+                      }
+                    }}
                   />
                 </div>
 
