@@ -1,127 +1,48 @@
-TaskVerse – Internship Through Real Tasks (MVP)
+# TaskVerse
 
-TaskVerse is a digital platform that connects interns seeking real-world experience with businesses needing help on micro-tasks and short projects. Instead of traditional internships, TaskVerse emphasizes task-based experience building, allowing interns to complete real tasks, earn points, and showcase verified skills.
+Connect interns with businesses for real-world task opportunities and skill development.
 
-This MVP includes user authentication, profile management, task posting, submissions, ratings, and a basic leaderboard system.
+## What It Does
 
-🚀 Features
+**For Interns:** Build your portfolio by completing real micro-tasks, earning points, badges, and gaining verified work experience.
 
-User Authentication (Interns & Businesses)
+**For Businesses:** Get tasks done by talented interns while helping them build their careers.
 
-Intern & Business Profiles
+## Quick Start
 
-Browse / Post Micro-Tasks
+1. Clone and install:
+```bash
+git clone https://github.com/Yajju-Dangol/TaskVerse.git
+cd TaskVerse
+npm install
+```
 
-Task Submission System
+2. Set up Supabase:
+Create a `.env` file with your project credentials:
+```bash
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-Points, Ratings & Badges
+3. Run the app:
+```bash
+npm run dev
+```
 
-Leaderboard for Visibility
+Visit `http://localhost:3000` to get started.
 
-Portfolio Auto-Generation for Interns
+## Key Features
 
-Secure, Fast & Responsive UI
+- **Task Marketplace**: Browse and apply for micro-tasks that match your skills [1](#1-0) 
+- **Progress Tracking**: Earn points, level up, and collect badges as you complete work [2](#1-1) 
+- **Business Tools**: Create tasks, review submissions, and manage your workflow [3](#1-2) 
+- **Portfolio Building**: Showcase your completed work and achievements to potential employers
 
-🛠️ Tech Stack
+## Tech Stack
 
-Framework: Next.js
+Built with React, TypeScript, and Supabase for a modern, scalable experience.
 
-Backend: Supabase (Auth, DB, Storage)
+---
 
-UI: Tailwind CSS + ShadCN
-
-Animations: Framer Motion
-
-Deployment: Vercel
-
-📌 Project Overview
-
-Many students struggle to gain verified experience, and businesses often find it hard to evaluate inexperienced applicants. TaskVerse solves both problems:
-
-Businesses post real, small tasks
-
-Interns complete them and earn points
-
-Ratings & badges help interns build credibility
-
-A transparent leaderboard highlights top performers
-
-This creates a simple, scalable, and motivating system for skill growth and talent identification.
-
-📂 Core Modules (MVP)
-
-Authentication – login/signup via Supabase
-
-Task Management – create, browse, apply, submit
-
-Business Dashboard – manage tasks, review submissions
-
-Intern Dashboard – track progress, points, badges
-
-Gamification System – points, levels, badges
-
-Leaderboards – rank interns by performance
-
-📋 System Requirements
-
-Software
-
-Next.js
-
-Tailwind CSS + ShadCN
-
-Supabase
-
-Git + VS Code
-
-Modern browser
-
-Hardware
-
-Intel i3 or equivalent
-
-4GB RAM minimum
-
-Stable internet connection
-
-📅 Development Plan (Summary)
-
-Requirement Analysis — 2 weeks
-
-UI/UX Design — 2 weeks
-
-Frontend Development — 3 weeks
-
-Backend & Database — 3 weeks
-
-Feedback System — 2 weeks
-
-Testing & Debugging — 3 weeks
-
-Deployment — 1 week
-
-📎 Future Enhancements
-
-Automated Task Matching
-
-Advanced Analytics & Insights
-
-Skill-Based Badges
-
-AI Recommendations
-
-Optional Payment Integration
-
-Real-Time Chat & Notifications
-
-📘 References
-
-Next.js Docs
-
-Supabase Docs
-
-Tailwind CSS Docs
-
-ShadCN UI Docs
-
-Vercel Deployment Docs
+## More Info
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Yajju-Dangol/TaskVerse)
