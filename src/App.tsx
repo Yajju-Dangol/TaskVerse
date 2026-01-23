@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { LandingPage } from './components/LandingPage';
 import { InternDashboard } from './components/InternDashboard';
 import { BusinessDashboard } from './components/BusinessDashboard';
@@ -6,6 +7,7 @@ import { ResetPassword } from './components/ResetPassword';
 import { Toaster } from './components/ui/sonner';
 import { supabase } from './lib/supabase';
 import { getProfile } from './lib/db';
+import { PageTransition } from './components/PageTransition';
 
 export type UserRole = 'intern' | 'business' | null;
 
@@ -24,6 +26,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [showPasswordReset, setShowPasswordReset] = useState(false);
 
+  // ... (keep auth logic same)
   const loadUserProfile = async (userId: string) => {
     try {
       const profile = await getProfile(userId);
@@ -151,47 +154,62 @@ export default function App() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  // Determine current view for AnimatePresence
+  const getView = () => {
+    if (loading) {
+      return (
+        <PageTransition key="loading">
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading...</p>
+            </div>
+          </div>
+        </PageTransition>
+      );
+    }
 
-  if (showPasswordReset) {
-    return <LandingPage showResetPasswordDialog={true} />;
-  }
+    if (showPasswordReset) {
+      return (
+        <PageTransition key="password-reset">
+          <LandingPage showResetPasswordDialog={true} />
+        </PageTransition>
+      );
+    }
 
-  if (!currentUser) {
-    return (
-      <>
-        <LandingPage />
-        <Toaster />
-      </>
-    );
-  }
+    if (!currentUser) {
+      return (
+        <PageTransition key="landing">
+          <LandingPage />
+        </PageTransition>
+      );
+    }
 
-  if (currentUser.role === 'intern') {
-    return (
-      <>
-        <InternDashboard user={currentUser} onLogout={handleLogout} />
-        <Toaster />
-      </>
-    );
-  }
+    if (currentUser.role === 'intern') {
+      return (
+        <PageTransition key="intern-dashboard">
+          <InternDashboard user={currentUser} onLogout={handleLogout} />
+        </PageTransition>
+      );
+    }
 
-  if (currentUser.role === 'business') {
-    return (
-      <>
-        <BusinessDashboard user={currentUser} onLogout={handleLogout} />
-        <Toaster />
-      </>
-    );
-  }
+    if (currentUser.role === 'business') {
+      return (
+        <PageTransition key="business-dashboard">
+          <BusinessDashboard user={currentUser} onLogout={handleLogout} />
+        </PageTransition>
+      );
+    }
 
-  return null;
+    return null;
+  };
+
+  return (
+    <>
+      <AnimatePresence mode="wait">
+        {getView()}
+      </AnimatePresence>
+      <Toaster />
+    </>
+  );
 }

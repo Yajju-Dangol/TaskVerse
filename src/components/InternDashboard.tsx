@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { PageTransition } from './PageTransition';
 import { User } from '../App';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { LogOut, Home, Briefcase, Trophy, User as UserIcon, Award } from 'lucide-react';
+import { LogOut, Home, Briefcase, Trophy, User as UserIcon, Award, Zap } from 'lucide-react';
 import { TaskBrowser } from './intern/TaskBrowser';
 import { MyTasks } from './intern/MyTasks';
 import { Leaderboard } from './intern/Leaderboard';
@@ -20,9 +21,15 @@ export function InternDashboard({ user, onLogout }: InternDashboardProps) {
   // Ensure dashboard starts at top when user logs in / view mounts
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const initialTab = window.location.hash.replace('#', '');
-      if (initialTab) {
-        setActiveTab(initialTab);
+      const hash = window.location.hash.replace('#', '');
+      const validTabs = ['home', 'browse', 'my-tasks', 'leaderboard', 'profile'];
+
+      if (hash && validTabs.includes(hash)) {
+        setActiveTab(hash);
+      } else {
+        // If hash is invalid (e.g. from landing page sections like #community), default to home
+        window.history.replaceState(null, '', ' ');
+        setActiveTab('home');
       }
       window.scrollTo({ top: 0, behavior: 'auto' });
     }
@@ -42,27 +49,27 @@ export function InternDashboard({ user, onLogout }: InternDashboardProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-50">
+      <header className="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50 transition-all duration-300">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Award className="size-6 text-blue-600" />
-              <h1 className="text-2xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                TaskVerse
-              </h1>
+            <div className="flex items-center gap-2 font-semibold text-xl tracking-tight text-gray-900">
+              <div className="bg-black text-white p-1 rounded-lg">
+                <Zap className="size-5" fill="currentColor" />
+              </div>
+              TaskVerse
             </div>
-            
+
             <div className="flex items-center gap-4">
               <div className="text-right hidden sm:block">
                 <p className="text-sm text-gray-600">Welcome back,</p>
-                <p>{user.name}</p>
+                <p className="font-medium text-gray-900">{user.name}</p>
               </div>
-              <div className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg">
+              <div className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-full shadow-md shadow-blue-100">
                 <Trophy className="size-4" />
-                <span>{user.points || 0} pts</span>
-                <span className="text-xs opacity-80">Level {user.level || 1}</span>
+                <span className="font-medium">{user.points || 0} pts</span>
+                <span className="text-xs opacity-80 border-l border-white/20 pl-2 ml-1">Level {user.level || 1}</span>
               </div>
-              <Button variant="ghost" size="icon" onClick={onLogout}>
+              <Button variant="ghost" size="icon" onClick={onLogout} className="rounded-full hover:bg-gray-100">
                 <LogOut className="size-4" />
               </Button>
             </div>
@@ -97,23 +104,33 @@ export function InternDashboard({ user, onLogout }: InternDashboardProps) {
           </TabsList>
 
           <TabsContent value="home">
-            <InternHome user={user} onNavigate={handleTabChange} />
+            <PageTransition>
+              <InternHome user={user} onNavigate={handleTabChange} />
+            </PageTransition>
           </TabsContent>
 
           <TabsContent value="browse">
-            <TaskBrowser user={user} />
+            <PageTransition>
+              <TaskBrowser user={user} />
+            </PageTransition>
           </TabsContent>
 
           <TabsContent value="my-tasks">
-            <MyTasks user={user} />
+            <PageTransition>
+              <MyTasks user={user} />
+            </PageTransition>
           </TabsContent>
 
           <TabsContent value="leaderboard">
-            <Leaderboard user={user} />
+            <PageTransition>
+              <Leaderboard user={user} />
+            </PageTransition>
           </TabsContent>
 
           <TabsContent value="profile">
-            <InternProfile user={user} onNavigate={handleTabChange} />
+            <PageTransition>
+              <InternProfile user={user} onNavigate={handleTabChange} />
+            </PageTransition>
           </TabsContent>
         </Tabs>
       </div>

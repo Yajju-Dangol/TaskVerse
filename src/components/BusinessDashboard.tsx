@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { PageTransition } from './PageTransition';
 import { User } from '../App';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { LogOut, Home, Briefcase, Users, Building2 } from 'lucide-react';
+import { LogOut, Home, Briefcase, Users, Building2, Zap } from 'lucide-react';
 import { BusinessHome } from './business/BusinessHome';
 import { ManageTasks } from './business/ManageTasks';
 import { ReviewSubmissions } from './business/ReviewSubmissions';
@@ -19,9 +20,15 @@ export function BusinessDashboard({ user, onLogout }: BusinessDashboardProps) {
   // Ensure dashboard starts at top when user logs in / view mounts
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const initialTab = window.location.hash.replace('#', '');
-      if (initialTab) {
-        setActiveTab(initialTab);
+      const hash = window.location.hash.replace('#', '');
+      const validTabs = ['home', 'tasks', 'submissions', 'profile'];
+
+      if (hash && validTabs.includes(hash)) {
+        setActiveTab(hash);
+      } else {
+        // If hash is invalid (e.g. from landing page sections), default to home
+        window.history.replaceState(null, '', ' ');
+        setActiveTab('home');
       }
       window.scrollTo({ top: 0, behavior: 'auto' });
     }
@@ -41,23 +48,23 @@ export function BusinessDashboard({ user, onLogout }: BusinessDashboardProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-50">
+      <header className="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50 transition-all duration-300">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Building2 className="size-6 text-blue-600" />
-              <h1 className="text-2xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                TaskVerse
-              </h1>
-              <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">Business</span>
+            <div className="flex items-center gap-2 font-semibold text-xl tracking-tight text-gray-900">
+              <div className="bg-black text-white p-1 rounded-lg">
+                <Zap className="size-5" fill="currentColor" />
+              </div>
+              TaskVerse
+              <span className="text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full ml-1 border border-gray-200">Business</span>
             </div>
-            
+
             <div className="flex items-center gap-4">
               <div className="text-right hidden sm:block">
                 <p className="text-sm text-gray-600">Welcome back,</p>
-                <p>{user.name}</p>
+                <p className="font-medium text-gray-900">{user.name}</p>
               </div>
-              <Button variant="ghost" size="icon" onClick={onLogout}>
+              <Button variant="ghost" size="icon" onClick={onLogout} className="rounded-full hover:bg-gray-100">
                 <LogOut className="size-4" />
               </Button>
             </div>
@@ -88,19 +95,27 @@ export function BusinessDashboard({ user, onLogout }: BusinessDashboardProps) {
           </TabsList>
 
           <TabsContent value="home">
-            <BusinessHome user={user} onNavigate={handleTabChange} />
+            <PageTransition>
+              <BusinessHome user={user} onNavigate={handleTabChange} />
+            </PageTransition>
           </TabsContent>
 
           <TabsContent value="tasks">
-            <ManageTasks user={user} />
+            <PageTransition>
+              <ManageTasks user={user} />
+            </PageTransition>
           </TabsContent>
 
           <TabsContent value="submissions">
-            <ReviewSubmissions user={user} />
+            <PageTransition>
+              <ReviewSubmissions user={user} />
+            </PageTransition>
           </TabsContent>
 
           <TabsContent value="profile">
-            <BusinessProfile user={user} />
+            <PageTransition>
+              <BusinessProfile user={user} />
+            </PageTransition>
           </TabsContent>
         </Tabs>
       </div>
