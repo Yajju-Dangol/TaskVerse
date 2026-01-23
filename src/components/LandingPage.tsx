@@ -364,7 +364,7 @@ export function LandingPage({ showResetPasswordDialog = false }: { showResetPass
       </footer>
 
       {/* Auth Dialog - Popup */}
-      <Dialog open={isAuthOpen && (authMode === 'login' || authMode === 'signup')} onOpenChange={(open) => {
+      <Dialog open={isAuthOpen && (authMode === 'login' || authMode === 'signup')} onOpenChange={(open: boolean) => {
         setIsAuthOpen(open);
         if (!open) {
           // Reset to login if closed completely
@@ -384,7 +384,7 @@ export function LandingPage({ showResetPasswordDialog = false }: { showResetPass
               </DialogDescription>
             </DialogHeader>
 
-            <Tabs value={authMode} onValueChange={(v) => setAuthMode(v as 'login' | 'signup')} className="w-full">
+            <Tabs value={authMode} onValueChange={(v: string) => setAuthMode(v as 'login' | 'signup')} className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="login">Login</TabsTrigger>
                 <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -546,7 +546,7 @@ export function LandingPage({ showResetPasswordDialog = false }: { showResetPass
       </Dialog>
 
       {/* Forgot Password Dialog */}
-      <Dialog open={authMode === 'forgot-password'} onOpenChange={(open) => {
+      <Dialog open={authMode === 'forgot-password'} onOpenChange={(open: boolean) => {
         if (!open) setAuthMode('login'); // Return to login on close
       }}>
         <DialogContent>
@@ -581,7 +581,7 @@ export function LandingPage({ showResetPasswordDialog = false }: { showResetPass
       </Dialog>
 
       {/* Update Password Dialog */}
-      <Dialog open={authMode === 'reset-password-confirm'} onOpenChange={(open) => {
+      <Dialog open={authMode === 'reset-password-confirm'} onOpenChange={(open: boolean) => {
         if (!open) setAuthMode('login');
       }}>
         <DialogContent>
