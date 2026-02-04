@@ -426,6 +426,8 @@ export interface InternPortfolioItem {
   business_name: string;
   completed_date: string;
   description: string;
+  task_description: string;
+  review: string | null;
   skills: string[];
   rating: number;
   points: number;
@@ -438,13 +440,15 @@ export async function getInternPortfolio(internId: string): Promise<InternPortfo
       id,
       description,
       rating,
+      feedback,
       submitted_date,
       status,
-      tasks:tasks!submissions_task_id_fkey (
+      task:task_id (
         title,
+        description,
         points,
         skills,
-        profiles:profiles!tasks_business_id_fkey (
+        business:business_id (
           business_name,
           name
         )
@@ -460,15 +464,17 @@ export async function getInternPortfolio(internId: string): Promise<InternPortfo
   }
 
   return (data || []).map((item: any) => {
-    const task = item.tasks || {};
-    const businessProfile = task.profiles || {};
+    const task = item.task || {};
+    const businessProfile = task.business || {};
 
     return {
       id: item.id as string,
       task_title: task.title as string,
       business_name: (businessProfile.business_name || businessProfile.name || 'Business') as string,
       completed_date: item.submitted_date as string,
-      description: item.description as string,
+      description: item.description as string, // Intern's submission description
+      task_description: task.description as string,
+      review: item.feedback as string | null,
       skills: (task.skills || []) as string[],
       rating: (item.rating || 0) as number,
       points: (task.points || 0) as number,

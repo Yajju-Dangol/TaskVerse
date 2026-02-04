@@ -12,6 +12,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { getBadges, getInternBadges, getInternPortfolio, updateProfile, type InternPortfolioItem } from '../../lib/db';
 import { toast } from 'sonner';
+import { generatePortfolioPDF } from '../../lib/generatePortfolioPDF';
 import type { Database } from '../../lib/supabase';
 
 type BadgeRow = Database['public']['Tables']['badges']['Row'] & { unlocked?: boolean };
@@ -72,6 +73,7 @@ export function InternProfile({ user, onNavigate, readonly = false }: InternProf
       }));
 
       setBadges(badgesWithState);
+      console.log('Fetched Portfolio Items:', portfolioItems);
       setPortfolio(portfolioItems);
       setLoading(false);
     };
@@ -107,6 +109,16 @@ export function InternProfile({ user, onNavigate, readonly = false }: InternProf
     } else {
       toast.error('Failed to update profile');
     }
+  };
+
+  const handleExportPortfolio = () => {
+    generatePortfolioPDF({
+      name: user.name,
+      email: user.email,
+      level: currentLevel,
+      points: currentPoints
+    }, portfolio);
+    toast.success('Portfolio exported successfully');
   };
 
   return (
@@ -222,7 +234,7 @@ export function InternProfile({ user, onNavigate, readonly = false }: InternProf
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl">Completed Projects</h3>
             {onNavigate && (
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={handleExportPortfolio}>
                 <Download className="size-4 mr-2" />
                 Export Portfolio
               </Button>
@@ -257,9 +269,28 @@ export function InternProfile({ user, onNavigate, readonly = false }: InternProf
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600 mb-3">{item.description}</p>
-                <div className="flex flex-wrap gap-2">
+              <CardContent className="space-y-4">
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-1">About the Task</h4>
+                  <p className="text-sm text-gray-600">{item.task_description}</p>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-1">My Submission</h4>
+                  <p className="text-sm text-gray-600">{item.description}</p>
+                </div>
+
+                {item.review && (
+                  <div className="bg-amber-50 p-3 rounded-md border border-amber-100">
+                    <h4 className="text-sm font-semibold text-amber-900 mb-1 flex items-center gap-2">
+                      <Award className="size-4" />
+                      Business Feedback
+                    </h4>
+                    <p className="text-sm text-amber-800 italic">"{item.review}"</p>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2 pt-2">
                   {item.skills.map((skill) => (
                     <Badge key={skill} variant="outline">
                       {skill}

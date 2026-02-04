@@ -158,9 +158,9 @@ CREATE POLICY "Users can view all profiles"
   USING (true);
 
 -- RLS Policies for tasks
-CREATE POLICY "Anyone can view open tasks"
+CREATE POLICY "Anyone can view tasks"
   ON tasks FOR SELECT
-  USING (status = 'open' OR business_id = auth.uid());
+  USING (true);
 
 CREATE POLICY "Businesses can create tasks"
   ON tasks FOR INSERT
