@@ -26,7 +26,6 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [showPasswordReset, setShowPasswordReset] = useState(false);
 
-  // ... (keep auth logic same)
   const loadUserProfile = async (userId: string) => {
     try {
       const profile = await getProfile(userId);
